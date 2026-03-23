@@ -132,7 +132,7 @@
 2. 填写应用信息：
    - **Application name**: 你的博客名称
    - **Homepage URL**: `https://your-domain.com`
-   - **Authorization callback URL**: `https://your-domain.com/auth/callback`
+   - **Authorization callback URL**: `https://your-domain.com/login`
 3. 创建后复制 **Client ID**
 4. 点击 **Generate a new client secret** 获取 **Client Secret**
 
@@ -296,7 +296,20 @@ wrangler d1 execute blog-db --file=../database/schema-v1.3-notification-messagin
 wrangler d1 execute blog-db --file=../database/schema-v1.4-refresh-tokens.sql
 ```
 
-### 2.5 配置后端 Secrets
+
+### 2.5 触发后端部署
+
+将代码推送到 GitHub `main` 分支：
+
+```bash
+git add .
+git commit -m "Configure deployment"
+git push origin main
+```
+
+GitHub Actions 会自动触发部署。可在仓库的 **Actions** 标签页查看部署进度。
+
+### 2.6 配置后端 Secrets
 
 在 Cloudflare Dashboard 中配置敏感环境变量：
 
@@ -309,6 +322,8 @@ wrangler d1 execute blog-db --file=../database/schema-v1.4-refresh-tokens.sql
 | `POST_PASSWORD_SECRET` | 文章密码访问密钥（可选） | 随机字符串 |
 | `GITHUB_CLIENT_ID` | GitHub OAuth ID（可选） | Iv1.xxxxxxxx |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth Secret（可选） | xxxxxxxx |
+| `RESEND_API_KEY` | RESEND_API_KEY（可选） | xxxxxxxx |
+| `RESEND_FROM_EMAIL` | RESEND_FROM_EMAIL（可选） | xxxxxxxx |
 
 **生成 JWT_SECRET 示例**：
 
@@ -319,18 +334,6 @@ openssl rand -base64 32
 # 或使用 Node.js
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
-
-### 2.6 触发后端部署
-
-将代码推送到 GitHub `main` 分支：
-
-```bash
-git add .
-git commit -m "Configure deployment"
-git push origin main
-```
-
-GitHub Actions 会自动触发部署。可在仓库的 **Actions** 标签页查看部署进度。
 
 ---
 
@@ -490,6 +493,8 @@ wrangler tail
 | `POST_PASSWORD_SECRET` | Secret | 可选 | 文章密码访问 Token 密钥 |
 | `GITHUB_CLIENT_ID` | Secret | 可选 | GitHub OAuth Client ID |
 | `GITHUB_CLIENT_SECRET` | Secret | 可选 | GitHub OAuth Client Secret |
+| `RESEND_API_KEY` | RESEND_API_KEY（可选） | xxxxxxxx |
+| `RESEND_FROM_EMAIL` | RESEND_FROM_EMAIL（可选） | xxxxxxxx |
 | `ENVIRONMENT` | 公开 | ✅ 必需 | 环境标识：`production` |
 | `FRONTEND_URL` | 公开 | ✅ 必需 | 前端地址，用于 CORS |
 | `STORAGE_PUBLIC_URL` | 公开 | 可选 | R2 公开访问 URL |
