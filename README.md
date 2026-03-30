@@ -16,7 +16,7 @@
 | 资源类型 | 链接 | 备注 |
 |---------|------|------|
 | 📖 项目文档 | 👉 [完整介绍](https://zread.ai/Zoroaaa/personal-blog) | 详细的项目说明和使用指南 |
-| 🚀 在线体验 | 👉 [https://blog.neutronx.uk](https://blog.neutronx.uk) | 体验完整功能 |
+| 🚀 在线体验 | 👉 [https://blog.wort.uk](https://blog.wort.uk) | 体验完整功能 |
 
 </div>
 
