@@ -6,18 +6,18 @@ compatibility_date = "2024-01-01"
 # D1 数据库
 [[d1_databases]]
 binding = "DB"
-database_name = "blog-db"
-database_id = "1edddff8-c00a-48b5-b33b-e0e6c14ddff4"
+database_name = "umi88"
+database_id = "fa026663-aba7-43f2-9f28-54a168acc305"
 
 # KV 缓存
 [[kv_namespaces]]
-binding = "CACHE"
-id = "69c0b7cfff1d48769cc2bd29f2d9711f"
+binding = "umi88"
+id = "435083bae08f48baa8e4122473ce8a3f"
 
 # R2 存储
 [[r2_buckets]]
 binding = "STORAGE"
-bucket_name = "blog-storage"
+bucket_name = "umi88"
 
 # 日志配置
 [observability]
