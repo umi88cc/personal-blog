@@ -1,14 +1,13 @@
 /**
- * 文章详情页面（修复日期错误版）
+ * 文章详情页面（修复日期错误版 + 短代码功能增强版）
  *
- * 修复内容：
- * 1. 修复日期格式错误（Invalid time value）
- * 2. 添加日期验证
- * 3. 处理null/undefined日期
+ * 增强内容：
+ * 1. 支持 [login]登录可见[/login] 短代码
+ * 2. 支持 [reply]回复可见[/reply] 短代码
+ * 3. 完美兼容原有代码高亮及 Markdown 插件
  *
  * @author 博客系统
- * @version 2.0.1
- * @created 2024-01-01
+ * @version 2.0.2
  */
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
@@ -31,6 +30,60 @@ import type { User } from '../types';
 
 // 导入代码高亮样式
 import 'highlight.js/styles/github-dark.css';
+
+// ============= 短代码 UI 组件 (新增) =============
+const SecretBlock: React.FC<{
+  type: 'login' | 'reply';
+  content: string;
+  isAuthenticated: boolean;
+  hasCommented: boolean;
+  plugins: { remark: any[]; rehype: any[] };
+  components: any;
+}> = ({ type, content, isAuthenticated, hasCommented, plugins, components }) => {
+  let isVisible = false;
+  let message = '';
+
+  if (type === 'login') {
+    isVisible = isAuthenticated;
+    message = '🔒 此处内容已隐藏，请【登录】后查看';
+  } else if (type === 'reply') {
+    isVisible = isAuthenticated && hasCommented;
+    message = '🔒 此处内容已隐藏，请【登录并发表评论】后查看';
+  }
+
+  if (isVisible) {
+    return (
+      <div className="my-6 p-4 border-l-4 border-emerald-500 bg-emerald-50 rounded-r-lg dark:bg-emerald-900/20 dark:border-emerald-600 not-prose">
+        <div className="text-sm text-emerald-600 dark:text-emerald-400 font-bold mb-3 flex items-center">
+          <svg className="w-5 h-5 mr-1.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd"></path></svg>
+          隐藏内容已解锁
+        </div>
+        <div className="prose prose-lg dark:prose-invert max-w-none">
+          <ReactMarkdown remarkPlugins={plugins.remark} rehypePlugins={plugins.rehype} components={components}>
+            {content}
+          </ReactMarkdown>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-6 py-8 px-4 border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg text-center dark:bg-gray-800 dark:border-gray-700 not-prose">
+      <p className="text-gray-600 dark:text-gray-300 font-medium mb-4">{message}</p>
+      {!isAuthenticated ? (
+        <Link to={`/login?redirect=${encodeURIComponent(window.location.pathname)}`} className="inline-block px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm">
+          前往登录
+        </Link>
+      ) : (
+        (type === 'reply' && !hasCommented) && (
+          <a href="#comments" className="inline-block px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm">
+            前往评论区留言
+          </a>
+        )
+      )}
+    </div>
+  );
+};
 
 // ============= 辅助函数 =============
 
@@ -100,6 +153,71 @@ export function PostPage() {
   const isCommentsEnabled = config?.feature_comments !== false;
   const isLikeEnabled = config?.feature_like !== false;
   const isShareEnabled = config?.feature_share !== false;
+
+  // ---- 新增：递归检查当前用户是否已经评论过 ----
+  const hasUserCommented = useMemo(() => {
+    if (!isAuthenticated || !user) return false;
+    
+    const checkComments = (commentList: Comment[]): boolean => {
+      if (!commentList) return false;
+      for (const c of commentList) {
+        const authorId = c.user?.id || (c as any).userId || (c as any).authorId || (c as any).author_id;
+        if (authorId === user.id) return true;
+        if (c.replies && checkComments(c.replies)) return true;
+      }
+      return false;
+    };
+
+    return checkComments(comments);
+  }, [comments, isAuthenticated, user]);
+
+  // ---- 新增：解析并渲染带短代码的正文 ----
+  const renderContentWithShortcodes = () => {
+    if (!post?.content) return null;
+
+    const regex = /\[(login|reply)\]([\s\S]*?)\[\/\1\]/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(post.content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: post.content.slice(lastIndex, match.index) });
+      }
+      parts.push({ type: match[1] as 'login' | 'reply', content: match[2] });
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < post.content.length) {
+      parts.push({ type: 'text', content: post.content.slice(lastIndex) });
+    }
+
+    return parts.map((part, index) => {
+      if (part.type === 'login' || part.type === 'reply') {
+        return (
+          <SecretBlock
+            key={index}
+            type={part.type}
+            content={part.content}
+            isAuthenticated={isAuthenticated}
+            hasCommented={hasUserCommented}
+            plugins={{ remark: [remarkGfm], rehype: [rehypeHighlight] }}
+            components={markdownComponents}
+          />
+        );
+      }
+      return (
+        <ReactMarkdown
+          key={index}
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={markdownComponents}
+        >
+          {part.content}
+        </ReactMarkdown>
+      );
+    });
+  };
 
   useEffect(() => {
     if (slug) {
@@ -560,7 +678,7 @@ export function PostPage() {
 
   // 渲染评论
   const renderComment = (comment: Comment, level = 0) => (
-    <div key={comment.id} className={`${level > 0 ? 'ml-8' : ''} border-l-2 border-border pl-4 mb-4`}>
+    <div key={comment.id} className={`${level > 0 ? 'ml-8' : ''} border-l-2 border-border pl-4 mb-4`} id="comments">
       <div className="flex items-start space-x-3">
         {comment.avatarUrl || comment.user?.avatarUrl ? (
           <img
@@ -894,16 +1012,10 @@ export function PostPage() {
             </aside>
           )}
 
-          {/* 正文内容 */}
+          {/* 替换为带有短代码解析的渲染器 */}
           <div className="flex-1 min-w-0">
             <div className="prose prose-lg dark:prose-invert max-w-none mb-8">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-                components={markdownComponents}
-              >
-                {post.content}
-              </ReactMarkdown>
+              {renderContentWithShortcodes()}
             </div>
           </div>
         </div>
